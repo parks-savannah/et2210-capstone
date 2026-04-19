@@ -1,0 +1,82 @@
+import random
+import datetime
+import time
+
+# --- SENSOR HIERARCHY ---
+class Sensor:
+    def __init__(self, name, unit):
+        self.name = name
+        self.unit = unit
+
+    def get_reading(self):
+        """Base method to be overridden by subclasses."""
+        raise NotImplementedError("Subclasses must implement get_reading()")
+
+class UltrasonicSensor(Sensor):
+    def get_reading(self):
+        # Simulates distance 0-400cm with occasional noise
+        return round(random.uniform(2.0, 400.0), 2)
+
+class LightSensor(Sensor):
+    def get_reading(self):
+        # Simulates Lux levels 0-1000
+        return random.randint(0, 1000)
+
+# --- SYSTEM LOGIC ---
+class AlarmController:
+    def __init__(self):
+        self.state = "DAY"  # Initial State
+        self.distance_buffer = []
+        self.thresholds = {"distance": 50.0, "light": 300}
+
+    def update_state(self, light_level):
+        """Adjusts system sensitivity based on light."""
+        if light_level < self.thresholds["light"]:
+            self.state = "NIGHT"
+        else:
+            self.state = "DAY"
+
+    def process_logic(self, distance):
+        """Evaluates if a breach has occurred."""
+        # TODO: Implement list-based smoothing here
+        if distance < self.thresholds["distance"]:
+            return True
+        return False
+
+# --- UTILITIES ---
+def log_event(message):
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] LOG: {message}")
+
+# --- MAIN EXECUTION ---
+def main():
+    print("--- Sentinel-PI System Initializing ---")
+    
+    # Initialize components
+    sonar = UltrasonicSensor("MainEntry", "cm")
+    photo = LightSensor("AmbientLight", "lux")
+    controller = AlarmController()
+
+    # Initial Modular Run (Simulating 5 cycles)
+    try:
+        for i in range(5):
+            current_dist = sonar.get_reading()
+            current_light = photo.get_reading()
+            
+            controller.update_state(current_light)
+            breach = controller.process_logic(current_dist)
+            
+            print(f"Cycle {i+1} | State: {controller.state} | Dist: {current_dist}{sonar.unit}")
+            
+            if breach:
+                log_event(f"BREACH DETECTED at {current_dist}{sonar.unit}")
+            
+            time.sleep(0.5)
+            
+    except Exception as e:
+        print(f"Critical System Error: {e}")
+    finally:
+        print("--- Simulation Cycle Complete ---")
+
+if __name__ == "__main__":
+    main()
