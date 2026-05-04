@@ -1,0 +1,108 @@
+import random
+import datetime
+import time
+from abc import ABC, abstractmethod
+
+# --- STRATEGY PATTERN: ALERT BEHAVIORS ---
+class AlertStrategy(ABC):
+    @abstractmethod
+    def alert(self, distance):
+        pass
+
+class SilentLogStrategy(AlertStrategy):
+    def alert(self, distance):
+        print(f"  [SILENT ALERT] Logged breach at {distance}cm.")
+
+class HighFrequencyStrategy(AlertStrategy):
+    def alert(self, distance):
+        print(f"  [ALARM TRIGGERED] High-frequency siren active! Distance: {distance}cm.")
+
+# --- STATE PATTERN: SYSTEM MODES ---
+class SystemState(ABC):
+    @abstractmethod
+    def evaluate(self, controller, distance):
+        pass
+
+class DayState(SystemState):
+    def evaluate(self, controller, distance):
+        if distance < 50.0: # Day threshold [cite: 101]
+            return True
+        return False
+
+class NightState(SystemState):
+    def evaluate(self, controller, distance):
+        if distance < 100.0: # Increased sensitivity at night
+            return True
+        return False
+
+# --- REFACTORED CONTROLLER ---
+class AlarmController:
+    def __init__(self):
+        self.state = DayState() # Default state [cite: 99]
+        self.strategy = SilentLogStrategy()
+        self.distance_buffer = [] # [cite: 100]
+
+    def set_state(self, state: SystemState):
+        self.state = state
+
+    def set_strategy(self, strategy: AlertStrategy):
+        self.strategy = strategy
+
+    def process_logic(self, distance, light_level):
+        # Update State based on light [cite: 102]
+        if light_level < 300:
+            if not isinstance(self.state, NightState):
+                print("Switching to NIGHT mode...")
+                self.set_state(NightState())
+                self.set_strategy(HighFrequencyStrategy())
+        else:
+            if not isinstance(self.state, DayState):
+                print("Switching to DAY mode...")
+                self.set_state(DayState())
+                self.set_strategy(SilentLogStrategy())
+
+        # Evaluate breach based on current state logic
+        if self.state.evaluate(self, distance):
+            self.strategy.alert(distance)
+            return True
+        return False
+
+# --- SENSOR HIERARCHY (From Milestone 1) ---
+class Sensor(ABC):
+    def __init__(self, name, unit):
+        self.name = name [cite: 83]
+        self.unit = unit [cite: 84]
+
+    @abstractmethod
+    def get_reading(self):
+        pass
+
+class UltrasonicSensor(Sensor):
+    def get_reading(self):
+        return round(random.uniform(2.0, 400.0), 2) [cite: 91]
+
+class LightSensor(Sensor):
+    def get_reading(self):
+        return random.randint(0, 1000) [cite: 95]
+
+# --- MAIN EXECUTION ---
+def main():
+    print("--- Sentinel-PI System (Milestone 2: Design Patterns) ---")
+    sonar = UltrasonicSensor("Main Entry", "cm")
+    photo = LightSensor("AmbientLight", "lux")
+    controller = AlarmController()
+
+    try:
+        for i in range(5):
+            dist = sonar.get_reading()
+            lux = photo.get_reading()
+            print(f"Cycle {i+1} | Light: {lux}lx | Dist: {dist}cm")
+            controller.process_logic(dist, lux)
+            time.sleep(0.5)
+    except Exception as e:
+        print(f"Critical System Error: {e}") [cite: 133]
+    finally:
+        print("--- Simulation Cycle Complete ---")
+
+if __name__ == "__main__":
+    main()
