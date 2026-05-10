@@ -1,0 +1,67 @@
+import pytest
+from sentinel_pi import AlarmController, DayState, NightState, SilentLogStrategy
+
+def test_initial_state():
+"""Verify system starts in DayState."""
+controller = AlarmController()
+assert isinstance(controller.state, DayState)
+
+def test_state_transition_night():
+"""Verify transition to NightState at low light."""
+controller = AlarmController()
+controller.update_environment(250)
+assert isinstance(controller.state, NightState)
+
+def test_state_transition_day():
+"""Verify transition back to DayState."""
+controller = AlarmController()
+controller.update_environment(500)
+assert isinstance(controller.state, DayState)
+
+def test_buffer_smoothing():
+"""Verify that a single spike doesn't trigger alarm immediately."""
+controller = AlarmController() # Day threshold = 50
+# Fill buffer with safe values
+for _ in range(4): controller.process_reading(100)
+
+# One dangerous spike (10cm) averaged with four 100cm = 82cm (Safe)
+assert controller.process_reading(10) is None
+def test_breach_detection_day():
+"""Verify DayState trigger at < 50cm."""
+controller = AlarmController()
+assert "Low-level" in controller.process_reading(10)
+def test_breach_detection_night():
+
+"""Verify NightState trigger sensitivity (100cm)."""
+controller = AlarmController()
+controller.update_environment(200) # Force Night
+assert "CRITICAL" in controller.process_reading(80)
+
+def test_strategy_switch():
+"""Verify alert message changes based on strategy."""
+controller = AlarmController()
+day_msg = controller.process_reading(10)
+controller.update_environment(100) # Switch to Night
+night_msg = controller.process_reading(10)
+assert day_msg != night_msg
+
+def test_buffer_max_size():
+"""Ensure buffer never exceeds 5 elements."""
+controller = AlarmController()
+for i in range(10): controller.process_reading(i)
+assert len(controller.buffer) == 5
+
+def test_sensor_abstraction_error():
+"""Verify abstract base class enforcement."""
+from sentinel_pi import Sensor
+with pytest.raises(TypeError):
+Sensor("Test", "cm")
+
+def test_log_file_creation(tmp_path):
+"""Verify file I/O works with dynamic paths."""
+from sentinel_pi import LogManager
+d = tmp_path / "subdir"
+d.mkdir()
+file = d / "test_log.csv"
+LogManager.write_log("Test Event", filename=file)
+assert file.exists()
