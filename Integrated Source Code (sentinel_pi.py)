@@ -1,0 +1,55 @@
+import random
+import datetime
+import time
+import csv
+from abc import ABC, abstractmethod
+
+# --- STRATEGY PATTERN: ALERT BEHAVIORS ---
+class AlertStrategy(ABC):
+@abstractmethod
+def alert(self, distance): pass
+class SilentLogStrategy(AlertStrategy):
+def alert(self, distance): return f"Low-level trigger at {distance}cm"
+class HighFrequencyStrategy(AlertStrategy):
+def alert(self, distance): return f"CRITICAL BREACH at {distance}cm"
+
+# --- STATE PATTERN: SYSTEM MODES ---
+class SystemState(ABC):
+@abstractmethod
+def evaluate(self, distance): pass
+class DayState(SystemState):
+def evaluate(self, distance): return distance < 50.0
+class NightState(SystemState):
+def evaluate(self, distance): return distance < 100.0
+
+# --- CORE CLASSES ---
+class AlarmController:
+def __init__(self):
+self.state = DayState()
+self.strategy = SilentLogStrategy()
+self.buffer = [] # [cite: 22]
+def update_environment(self, light_level):
+if light_level < 300:
+self.state = NightState()
+self.strategy = HighFrequencyStrategy()
+else:
+self.state = DayState()
+self.strategy = SilentLogStrategy()
+def process_reading(self, distance):
+
+# Smoothing logic: maintain last 5 readings
+self.buffer.append(distance)
+if len(self.buffer) > 5:
+self.buffer.pop(0)
+avg_dist = sum(self.buffer) / len(self.buffer)
+if self.state.evaluate(avg_dist):
+return self.strategy.alert(avg_dist)
+return None
+
+class LogManager:
+@staticmethod
+def write_log(message, filename="security_log.csv"):
+timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+with open(filename, "a", newline="") as f:
+writer = csv.writer(f)
+writer.writerow([timestamp, message])
